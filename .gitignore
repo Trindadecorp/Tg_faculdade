@@ -1,0 +1,39 @@
+# Node / Next.js
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+.vercel/
+
+# Env / segredos
+.env
+.env.*
+!.env.example
+*.pem
+serviceAccount*.json
+
+# Python / ML
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+ml/data/raw/
+ml/data/processed/
+ml/models/**/*.pkl
+ml/models/**/*.h5
+*.parquet
+
+# Dados sensíveis (LGPD — nunca versionar conteúdo de e-mail real)
+**/emails_reais/
+*.eml
+!tests/**/*.eml
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
