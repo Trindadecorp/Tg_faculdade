@@ -1,0 +1,21 @@
+{
+  "timeZone": "America/Sao_Paulo",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/gmail.addons.current.message.readonly",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/userinfo.email"
+  ],
+  "addOns": {
+    "common": {
+      "name": "PhishGuard BR",
+      "logoUrl": "https://phishguard.br/icon.png",
+      "layoutProperties": { "primaryColor": "#1a56db" }
+    },
+    "gmail": {
+      "contextualTriggers": [{
+        "unconditional": {},
+        "onTriggerFunction": "onGmailMessageOpen"
+      }]
+    }
+  }
+}

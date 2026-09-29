@@ -1,0 +1,54 @@
+# Node
+node_modules/
+.next/
+out/
+npm-debug.log*
+
+# Env
+.env
+.env.local
+.env*.local
+
+# Prisma
+frontend/prisma/migrations/dev_*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ML data and models (grandes / sensíveis — não versionar)
+ml/data/raw/*
+!ml/data/raw/.gitkeep
+ml/data/processed/*
+!ml/data/processed/.gitkeep
+ml/data/synthetic/*
+!ml/data/synthetic/.gitkeep
+ml/models/*
+!ml/models/.gitkeep
+!ml/models/**/MODEL_CARD.md
+# Metadados DEVEM ser versionados: o lock do corpus de controle e o do E5 sao
+# o proprio mecanismo de reprodutibilidade (PROTOCOLO_EXPERIMENTAL.md §8).
+# Um lock que so existe na maquina de quem rodou nao congela nada.
+!ml/models/*.lock.json
+!ml/models/*.meta.json
+
+# --- Dados PT-BR: privacidade por construcao (LGPD + direito autoral) ---
+# .eml cru carrega muito alem do corpo: IPs em Received, Message-ID, DKIM,
+# nome e endereco do titular, tokens de rastreio e de unsubscribe, anexos.
+# Nunca versionar. raw_private idealmente fica FORA da arvore do Git.
+ml/data/ptbr/raw_private/
+ml/data/ptbr/processed_private/
+*.eml
+*.mbox
+!ml/data/ptbr/public/
+
+# Docker
+pgdata/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

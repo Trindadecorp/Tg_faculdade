@@ -1,0 +1,27 @@
+{
+  "esquema_versao": "1.0",
+  "consistente": true,
+  "total_registros": 2,
+  "total_erros": 0,
+  "camada_embedding_ativa": false,
+  "camada_embedding_motivo": "nao solicitada (--mode check sem --embeddings)",
+  "ambiente": {},
+  "resumo": {
+    "por_particao": {
+      "treino": 2
+    },
+    "por_canal": {
+      "sms": 2
+    },
+    "por_rotulo": {
+      "golpe": 1,
+      "seguro": 1
+    },
+    "por_natureza": {
+      "real": 2
+    },
+    "redistribuiveis": 2,
+    "fora_da_versao_publica": 0
+  },
+  "violacoes": []
+}

@@ -1,0 +1,2 @@
+Versionavel. Apenas registros com redistribuivel=true.
+E esta pasta que vira o corpus publicado.

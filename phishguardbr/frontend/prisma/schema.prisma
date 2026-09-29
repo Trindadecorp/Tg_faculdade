@@ -1,0 +1,285 @@
+// Núcleo (MVP) — ver arquitetura_tecnica.md §4-5.
+// Domínios de extensão (api_keys, LGPD, campanhas) entram após o núcleo — §6.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum OrgType {
+  pessoa_fisica
+  pme
+  parceiro
+}
+
+enum UserRole {
+  end_user
+  analyst
+  admin
+}
+
+enum AnalysisSource {
+  addon
+  api
+  upload
+  watch
+}
+
+enum Channel {
+  email
+  sms
+  whatsapp
+  outro
+}
+
+enum Classification {
+  seguro
+  suspeito
+  golpe
+  indeterminado
+}
+
+enum ScoreModule {
+  auth
+  nlp
+  url
+  brand
+}
+
+enum FeedbackVerdict {
+  falso_positivo
+  golpe_confirmado
+  nao_sei
+}
+
+enum CurationStatus {
+  pending
+  approved
+  rejected
+}
+
+enum ModelStatus {
+  training
+  active
+  archived
+  rolled_back
+}
+
+enum BrandCategory {
+  banco
+  governo
+  logistica
+  varejo
+  email
+  outro
+}
+
+model Organization {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  type      OrgType  @default(pessoa_fisica)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  users    User[]
+  settings OrgSettings?
+  analyses Analysis[]
+
+  @@map("organizations")
+}
+
+model User {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  firebaseUid  String    @unique @map("firebase_uid")
+  orgId        String    @map("org_id") @db.Uuid
+  email        String    @db.Citext
+  displayName  String?   @map("display_name")
+  role         UserRole  @default(end_user)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  lastSeenAt   DateTime? @map("last_seen_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  analyses     Analysis[]
+  feedback     Feedback[]
+  curated      CurationItem[]
+
+  @@index([orgId])
+  @@map("users")
+}
+
+model OrgSettings {
+  orgId             String   @id @map("org_id") @db.Uuid
+  thresholdSuspeito Int      @default(45) @map("threshold_suspeito")
+  thresholdGolpe    Int      @default(75) @map("threshold_golpe")
+  updatedBy         String?  @map("updated_by") @db.Uuid
+  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@map("org_settings")
+}
+
+model ModelVersion {
+  id                  String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  version             String       @unique
+  algorithm           String
+  status              ModelStatus  @default(training)
+  metrics             Json         @default("{}")
+  modelCardUrl        String?      @map("model_card_url")
+  trainingDatasetRef  String?      @map("training_dataset_ref")
+  trainedAt           DateTime?    @map("trained_at") @db.Timestamptz
+  deployedAt          DateTime?    @map("deployed_at") @db.Timestamptz
+  createdAt           DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  analyses Analysis[]
+
+  @@map("model_versions")
+}
+
+model Analysis {
+  id                 String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId              String         @map("org_id") @db.Uuid
+  userId             String?        @map("user_id") @db.Uuid
+  modelVersionId     String         @map("model_version_id") @db.Uuid
+  source             AnalysisSource
+  channel            Channel        @default(email)
+
+  finalScore         Int            @map("final_score")
+  classification     Classification
+  attachmentModifier Decimal        @default(0) @map("attachment_modifier") @db.Decimal(4, 1)
+  degradedMode       Boolean        @default(false) @map("degraded_mode")
+  processingTimeMs   Int?           @map("processing_time_ms")
+
+  senderDomainHash   String         @map("sender_domain_hash")
+  subjectHash        String?        @map("subject_hash")
+  bodySha256         String?        @map("body_sha256")
+  linksCount         Int            @default(0) @map("links_count")
+  attachmentsCount   Int            @default(0) @map("attachments_count")
+
+  receivedAt         DateTime?      @map("received_at") @db.Timestamptz
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz
+
+  organization  Organization           @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user          User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  modelVersion  ModelVersion           @relation(fields: [modelVersionId], references: [id])
+  moduleScores  AnalysisModuleScore[]
+  signals       AnalysisSignal[]
+  feedback      Feedback[]
+  curationItems CurationItem[]
+
+  @@index([orgId, createdAt(sort: Desc)])
+  @@index([classification])
+  @@index([modelVersionId])
+  @@index([bodySha256])
+  @@index([subjectHash])
+  @@map("analyses")
+}
+
+model AnalysisModuleScore {
+  analysisId String      @map("analysis_id") @db.Uuid
+  module     ScoreModule
+  rawScore   Int?        @map("raw_score")
+  weightUsed Decimal     @map("weight_used") @db.Decimal(4, 3)
+  applicable Boolean     @default(true)
+  evidence   Json        @default("[]")
+
+  analysis Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@id([analysisId, module])
+  @@map("analysis_module_scores")
+}
+
+model SignalCatalog {
+  code          String      @id
+  module        ScoreModule
+  description   String
+  defaultWeight Int         @default(0) @map("default_weight")
+  active        Boolean     @default(true)
+
+  signals AnalysisSignal[]
+
+  @@map("signal_catalog")
+}
+
+model AnalysisSignal {
+  id          BigInt   @id @default(autoincrement())
+  analysisId  String   @map("analysis_id") @db.Uuid
+  signalCode  String   @map("signal_code")
+  weight      Int      @default(0)
+  detail      Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  analysis Analysis      @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  signal   SignalCatalog @relation(fields: [signalCode], references: [code])
+
+  @@index([analysisId])
+  @@index([signalCode])
+  @@map("analysis_signals")
+}
+
+model Feedback {
+  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  analysisId String?         @map("analysis_id") @db.Uuid
+  userId     String?         @map("user_id") @db.Uuid
+  verdict    FeedbackVerdict
+  comment    String?
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz
+
+  analysis      Analysis?     @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+  user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  curationItem  CurationItem?
+
+  @@unique([analysisId, userId])
+  @@map("feedback")
+}
+
+model CurationItem {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  feedbackId         String?         @unique @map("feedback_id") @db.Uuid
+  analysisId         String?         @map("analysis_id") @db.Uuid
+  status             CurationStatus  @default(pending)
+  labelFinal         Classification? @map("label_final")
+  featuresSnapshot   Json            @default("{}") @map("features_snapshot")
+  curatorId          String?         @map("curator_id") @db.Uuid
+  notes              String?
+  curatedAt          DateTime?       @map("curated_at") @db.Timestamptz
+  includedInModelId  String?         @map("included_in_model_id") @db.Uuid
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz
+
+  feedback Feedback? @relation(fields: [feedbackId], references: [id], onDelete: SetNull)
+  analysis Analysis? @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+  curator  User?     @relation(fields: [curatorId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("curation_items")
+}
+
+model Brand {
+  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String        @unique
+  category  BrandCategory
+  isActive  Boolean       @default(true) @map("is_active")
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime      @default(now()) @map("updated_at") @db.Timestamptz
+
+  domains BrandDomain[]
+
+  @@map("brands")
+}
+
+model BrandDomain {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  brandId   String   @map("brand_id") @db.Uuid
+  domain    String   @unique @db.Citext
+  isPrimary Boolean  @default(false) @map("is_primary")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([brandId])
+  @@map("brand_domains")
+}

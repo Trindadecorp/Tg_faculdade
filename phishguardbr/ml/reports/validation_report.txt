@@ -1,0 +1,15 @@
+VALIDACAO DO CORPUS PT-BR
+esquema v1.0 | 2 registros
+camada semantica (embeddings): NAO EXECUTADA — nao solicitada (--mode check sem --embeddings)
+======================================================================
+
+AVISO: agrupamento semantico nao executado. Resultado valido para inspecao, NAO para geracao oficial do corpus (--mode build).
+
+por_particao: {'treino': 2}
+por_canal: {'sms': 2}
+por_rotulo: {'golpe': 1, 'seguro': 1}
+por_natureza: {'real': 2}
+redistribuiveis: 2
+fora_da_versao_publica: 0
+
+OK: nenhuma violacao estrutural.

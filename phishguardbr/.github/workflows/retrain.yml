@@ -1,0 +1,23 @@
+# TODO Fase 7 — ciclo de retreinamento contínuo (ver planejamento_tg.md §10 Fase 7).
+# Mantido desabilitado (workflow_dispatch apenas) até a Fase 5 (API) e a Fase 4
+# (PhishRisk Engine) estarem concluídas e o job de curadoria ler de PostgreSQL
+# (curation_items), não mais de Firestore.
+name: Retrain Model
+
+on:
+  workflow_dispatch:
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Export curated feedback (curation_items WHERE status = approved)
+        run: echo "TODO Fase 7"
+      - name: Validate and sanitize labels (anti-poisoning)
+        run: echo "TODO Fase 7"
+      - name: Run training pipeline
+        run: echo "TODO Fase 7"
+      - name: Validate metrics (AUC > 0.97 AND FPR_marketing < 0.02)
+        run: echo "TODO Fase 7"
+      - name: Deploy if passed / rollback if failed
+        run: echo "TODO Fase 7"

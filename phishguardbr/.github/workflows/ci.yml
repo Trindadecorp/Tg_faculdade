@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  db-check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: phishguard
+          POSTGRES_USER: phishguard
+          POSTGRES_PASSWORD: dev_only_change_me
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://phishguard:dev_only_change_me@localhost:5432/phishguard?schema=public
+      DIRECT_URL: postgresql://phishguard:dev_only_change_me@localhost:5432/phishguard?schema=public
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npx prisma migrate deploy
+      - run: npx prisma migrate diff --exit-code
+      - run: npm run lint

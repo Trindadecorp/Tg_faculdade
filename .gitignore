@@ -37,3 +37,11 @@ Thumbs.db
 .idea/
 .vscode/
 *.log
+
+# Arquivos temporarios do Word (lock file criado ao abrir o documento;
+# contem o nome do usuario e nao tem valor no repositorio)
+~$*
+
+# Backups locais de .docx criados antes de edicoes automatizadas.
+# O historico do git ja cumpre esse papel — nao versionar copias quase iguais.
+*.BACKUP*.docx

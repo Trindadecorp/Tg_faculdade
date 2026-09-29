@@ -1,0 +1,52 @@
+{
+  "versao_protocolo": "1.1",
+  "registrado_em": "2026-09-28",
+  "motivo": "congelamento inicial do corpus de controle, protocolo v1.1",
+  "conjuntos": {
+    "corpus_estrangeiro_controle": {
+      "arquivo": "data/processed/email_dataset_v2.parquet",
+      "papel": "treino estrangeiro em A e C; parcela estrangeira do conjunto combinado em B e D",
+      "linhas": 108951,
+      "schema": {
+        "id": "object",
+        "source": "object",
+        "channel": "object",
+        "raw_label": "object",
+        "subject": "object",
+        "body_text": "object",
+        "sender_domain_hash": "object",
+        "attachments_count": "int64",
+        "parse_method": "object",
+        "parse_error": "bool",
+        "links_count": "int64",
+        "char_count": "int64"
+      },
+      "campos_experimentais": [
+        "source",
+        "channel",
+        "raw_label",
+        "subject",
+        "body_text"
+      ],
+      "parametros_geracao": {
+        "script": "src/features/build_dataset.py",
+        "estagio": "sample",
+        "cap_por_celula": 20000,
+        "seed": 42,
+        "entrada": "email_dataset_v2_dedup.parquet",
+        "origem_da_dedupe": "email_dataset_v1_parsed.parquet"
+      },
+      "content_sha256": "7c5a16f26940d20eefe286ba3170b17d199b602e9c6530f529d9e69ab99a6ba2",
+      "artifact_sha256": "1363ee747bb9d622c356879abfbd3e00caa90d64bb56fa605e0df1d8e4c0b432",
+      "bytes": 114232785,
+      "row_groups": 25
+    }
+  },
+  "substitui": {
+    "registrado_em": "2026-09-28",
+    "content_sha256": {
+      "corpus_estrangeiro_controle": null,
+      "url_dataset": null
+    }
+  }
+}

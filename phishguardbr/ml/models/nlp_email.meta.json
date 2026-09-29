@@ -1,0 +1,17 @@
+{
+  "nome": "nlp_email",
+  "treinado_em": "2026-09-25",
+  "metricas_holdout": {
+    "accuracy": 0.9739909449956652,
+    "precision": 0.9658254468980021,
+    "recall": 0.9632931305715784,
+    "f1": 0.9645576266736676,
+    "auc_roc": 0.9958216031692683
+  },
+  "canal": "email",
+  "dataset": "email_dataset_v2.parquet",
+  "n_treino": 83044,
+  "n_teste": 20762,
+  "prop_golpe_treino": 0.367407639323732,
+  "algoritmo": "TF-IDF(1-2gram) + LogisticRegression"
+}

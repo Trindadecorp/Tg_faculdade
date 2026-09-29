@@ -1,0 +1,17 @@
+{
+  "nome": "nlp_sms",
+  "treinado_em": "2026-09-25",
+  "metricas_holdout": {
+    "accuracy": 0.9698736637512148,
+    "precision": 0.9896907216494846,
+    "recall": 0.7619047619047619,
+    "f1": 0.8609865470852018,
+    "auc_roc": 0.9972050835838211
+  },
+  "canal": "sms",
+  "dataset": "email_dataset_v2.parquet",
+  "n_treino": 4116,
+  "n_teste": 1029,
+  "prop_golpe_treino": 0.12196307094266277,
+  "algoritmo": "TF-IDF(1-2gram) + LogisticRegression"
+}

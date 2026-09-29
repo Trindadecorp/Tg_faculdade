@@ -73,6 +73,16 @@ sequestrar conversas legítimas em andamento.
 - **Foco exclusivo em ameaça técnica** — priorizam assinatura de malware e reputação de IP,
   tratando a manipulação psicológica como sinal secundário.
 
+**Uma lacuna adicional, de natureza acadêmica: não existe corpus público de phishing/smishing
+em português brasileiro.** Os datasets consolidados e amplamente citados na literatura
+(Nazario, SpamAssassin, Enron, TREC, Fraudulent E-mail Corpus, SMS Spam Collection, DSmishSMS)
+são majoritariamente em inglês, construídos sobre contexto americano ou europeu — nenhum modela
+o léxico de urgência em português, PIX, gov.br ou as marcas e órgãos brasileiros mais
+impersonados. Isso força todo trabalho nacional na área a partir do zero, sem uma base de
+comparação padronizada. Este TG assume explicitamente essa lacuna como parte do problema de
+pesquisa: a construção do corpus PT-BR (§5) não é apenas insumo de treino, é uma contribuição
+própria do trabalho, validada ao final pelo desempenho do PhishGuard BR sobre ela.
+
 ### 1.2 Solução
 
 O **PhishGuard BR** é um produto de segurança para o canal e-mail que combina:
@@ -107,6 +117,7 @@ mensagem que dispararam cada sinal e uma explicação em linguagem natural sobre
 | Ciclo de retreinamento contínuo com curadoria humana | ✅ | ✅ Enterprise only |
 | Painel RiskOps + visão do usuário final | ✅ Ambos | ⚠️ Separados |
 | Base de treino multicanal (SMS/WhatsApp → e-mail) | ✅ *Transfer* de features de ES | ❌ Não possui |
+| Corpus aberto de phishing/smishing em PT-BR | ✅ Construído e documentado neste TG | ❌ Datasets públicos são majoritariamente em inglês |
 | Preço / acessibilidade | ✅ Aberto / acadêmico | ❌ Caro |
 
 ### 1.4 Público-Alvo
@@ -391,6 +402,35 @@ tratadas explicitamente e reportadas no relatório:
 3. **Desbalanceamento entre fontes.** O Enron sozinho é 10× maior que todo o resto somado.
    *Mitigação:* amostragem estratificada, não uso integral.
 
+#### Evidência experimental — a transferência lexical entre canais não ocorre
+
+A hipótese de canal-agnosticismo acima foi submetida a teste antes de ser adotada como
+premissa de projeto. O experimento está descrito em §5.5 e os resultados completos em
+`ml/reports/BASELINES_REPORT.md`.
+
+Quatro classificadores de texto (regressão logística, SVM linear, Naive Bayes multinomial e
+*random forest*) sobre representação TF-IDF foram treinados no corpus de e-mail e avaliados
+em cada fonte deixada de fora. Entre fontes **de e-mail**, a transferência se mostrou sólida
+— F1 médio de 0,927, próximo dos 0,960 obtidos no split aleatório. Testados na fonte **de
+SMS**, os mesmos modelos caem para F1 de 0,333, com AUC de 0,514 no *random forest*: o
+equivalente a decisão aleatória. O comportamento é característico — recall de 0,84 contra
+precisão de 0,16, isto é, o modelo classifica quase toda mensagem curta como fraude, por
+aplicar a um SMS as probabilidades a priori aprendidas em e-mail.
+
+**Interpretação e alcance do resultado.** O que o experimento refuta é a transferência no
+nível **lexical**: um modelo de sacola-de-palavras treinado em e-mail não opera sobre SMS,
+porque o registro difere por completo — a mediana de comprimento é de 53 caracteres contra
+752 no e-mail, e o vocabulário tem sobreposição reduzida. O experimento **não** refuta a
+hipótese de que as features de engenharia social (urgência, autoridade, medo, escassez)
+sejam canal-agnósticas: essas features não foram isoladas nesta bateria, que utilizou
+representação puramente lexical.
+
+A consequência de projeto é, portanto, metodológica e não conceitual. A arquitetura de
+submodelos permanece válida, mas o canal-agnosticismo do submodelo de engenharia social
+passa a ser **hipótese a verificar por construção explícita de features**, e não propriedade
+assumida. Enquanto essa verificação não for feita, cada canal exige corpus e limiar próprios,
+e nenhuma métrica obtida em e-mail pode ser reportada como válida para SMS.
+
 ### 5.3 Pipeline Completo
 
 ```
@@ -484,6 +524,51 @@ tratadas explicitamente e reportadas no relatório:
 > e-mails transacionais e campanhas de marketing legítimas usam exatamente o vocabulário de
 > urgência e escassez que o modelo aprende a punir — é o principal risco de FP do projeto e
 > precisa de conjunto de avaliação próprio.
+
+### 5.5 Protocolo de Avaliação — por que o split aleatório não basta
+
+O protocolo de avaliação adotado neste trabalho difere do usual na literatura de detecção de
+spam, e a diferença é deliberada.
+
+**O problema do split aleatório.** A prática corrente consiste em particionar o corpus
+consolidado em treino e teste de forma aleatória e estratificada por classe. O procedimento
+pressupõe que treino e teste são amostras independentes da mesma distribuição — pressuposto
+que não se sustenta quando o corpus é a união de fontes heterogêneas. Sob split aleatório,
+cada fonte contribui para os dois conjuntos, e o classificador pode alcançar desempenho
+elevado aprendendo a **reconhecer a procedência** da mensagem em vez de a fraude.
+
+A análise exploratória documentou esse risco de forma direta (`ml/reports/EDA_REPORT.md`,
+seção 7). Calculada a razão de chances logarítmica de cada termo entre as classes, os quinze
+termos mais preditivos de "legítimo" no corpus bruto eram `enron`, `ect`, `hou`, `houston`,
+`ena`, `ees`, `kaminski`, `forwarded` e sobrenomes de funcionários — isto é, vocabulário
+interno de uma única empresa, e não marcadores de legitimidade. O corpus Enron representava
+66,1% dos registros brutos e não continha nenhum exemplo positivo, de modo que "escrever como
+a Enron" constituía atalho perfeito para a classe negativa.
+
+**Mitigação na construção do dataset.** O corpus de treino (`email_dataset_v2`) aplica teto
+por **célula fonte × rótulo**, e não por fonte. Um teto por fonte corrigiria apenas o volume;
+como o Enron é integralmente negativo, a correlação entre procedência e rótulo permaneceria.
+Limitando cada combinação, a fatia do Enron cai de 66,1% para 18,4% do corpus e de 64% para
+28,5% da classe negativa. O procedimento está implementado em
+`ml/src/features/build_dataset.py`.
+
+**Protocolo duplo de avaliação.** Toda bateria de experimentos reporta duas medidas:
+
+| Protocolo | Construção | O que mede |
+|---|---|---|
+| **A — split aleatório** | 80/20 estratificado por classe | Desempenho sob distribuição vista em treino. Comparável à literatura. |
+| **B — *leave-one-source-out*** | Treina em todas as fontes menos uma; testa na omitida | Desempenho sob distribuição inédita. |
+
+A justificativa do protocolo B é a condição operacional do produto: o PhishGuard BR analisará
+correspondência brasileira, que não integra nenhuma das fontes públicas disponíveis. Do ponto
+de vista do modelo, o e-mail brasileiro é precisamente uma fonte nunca vista. Reportar
+exclusivamente o protocolo A superestimaria o desempenho em produção.
+
+**Ressalva quanto à independência das fontes.** As fontes públicas não são mutuamente
+exclusivas: o conjunto `seven-phishing-email-datasets` reempacota subconjuntos de Enron e
+SpamAssassin. Quando uma dessas é omitida, parte de sua distribuição permanece no treino por
+via indireta. O protocolo B fornece, portanto, um limite **otimista** da transferência real —
+ressalva que deve acompanhar qualquer métrica dele derivada.
 
 ---
 
@@ -663,6 +748,65 @@ HTML_RISK_SIGNALS = {
 **Resolução de redirecionamentos.** Encurtadores exigem seguir a cadeia até o destino final.
 Isso torna o backend um cliente HTTP arbitrário e cria risco de SSRF — as travas obrigatórias
 estão em §8.3.
+
+#### Unificação do rótulo: phishing e malware como decisão única
+
+Campanhas de phishing frequentemente veiculam links de distribuição de *malware*, aplicativo
+malicioso ou página de captura de credencial. Os desfechos são distintos, mas a decisão que o
+módulo precisa tomar diante de um e-mail é uma só: **o link é perigoso ou não**. O corpus de
+URLs adota, por isso, rótulo binário `is_malicious`, no qual OpenPhish (página enganosa) e
+URLhaus (entrega de payload) entram ambos como positivos.
+
+A distinção não é descartada: é preservada na coluna `threat_type` como **metadado**. Ela
+cumpre duas funções — alimenta a camada de explicação ao usuário, que informa *por que* o
+link é perigoso, e viabiliza o protocolo de avaliação cruzada descrito adiante.
+
+**Verificação experimental da premissa.** A unificação do rótulo só se justifica se as duas
+ameaças compartilharem assinatura estrutural. Isso foi testado treinando o classificador
+exclusivamente com positivos de *malware* e avaliando-o sobre positivos de phishing jamais
+vistos (`ml/reports/URL_MODEL_REPORT.md`):
+
+| Medida | Valor | Leitura |
+|---|---:|---|
+| AUC-ROC | 0,946 | O modelo **ordena** corretamente: reconhece as URLs de phishing como mais arriscadas que as legítimas. |
+| Precisão | 0,907 | Quando sinaliza, acerta. |
+| Recall | 0,520 | **Deixa passar metade** sob o limiar herdado do treino em malware. |
+
+A combinação de AUC elevada com recall baixo tem interpretação precisa: o sinal estrutural
+transfere entre as duas ameaças, mas o **limiar de decisão** não. URLs de phishing são
+deliberadamente mais discretas, por imitarem endereços legítimos; as de distribuição de
+malware concentram-se em hospedagem por endereço IP literal, que a análise de importância de
+atributos confirmou ser o sinal dominante no corpus atual.
+
+**Decisão de projeto.** Um módulo único cobre as duas ameaças — o rótulo binário se sustenta
+—, porém o limiar deve ser **calibrado por tipo de ameaça**, nunca herdado de um para o
+outro. Essa calibração integra o ajuste de limiar descrito em §6.7.
+
+#### Independência de idioma e implicação para o corpus PT-BR
+
+As features do módulo são **léxico-estruturais**: comprimento e entropia do *hostname*,
+host como IP literal, presença de porta explícita, *punycode*, número de subdomínios, TLD de
+registro gratuito, e posição da marca — especificamente, marca presente fora do domínio
+registrável, padrão de `secure-itau.com.br.verificacao.xyz`. O modelo aprende **forma**, não
+identidade: não memoriza que um domínio específico é malicioso, o que envelheceria em dias e
+para o que bastaria consultar o feed.
+
+A consequência é relevante para o cronograma do trabalho: esses sinais são, em larga medida,
+**independentes de idioma**. Uma URL de golpe brasileira exibe as mesmas propriedades
+estruturais de sua equivalente em inglês. O módulo de URL é, portanto, o único componente do
+PhishRisk Engine com expectativa de transferir para o contexto PT-BR sem depender da
+construção do corpus em português — o que reduz o risco de cronograma dos demais módulos.
+
+A validação contra benchmark externo sustenta a abordagem. Sobre o conjunto PhishingWebsites
+(OpenML 4534, 11.055 sítios, resultados publicados), o mesmo procedimento atinge F1 de 0,977,
+compatível com a literatura. O benchmark é necessário como controle porque o corpus próprio
+combina negativos extraídos de corpora de 2002 com positivos de feeds atuais, e o F1 de 0,993
+ali obtido está inflado por essa defasagem temporal.
+
+**Limitação registrada.** A verificação de marca opera por correspondência de subcadeia e,
+portanto, **não detecta *typosquatting* por homóglifo** — `bradesc0` com algarismo zero não
+corresponde a `bradesco`. A cobertura desse vetor exige distância de edição ou mapa de
+homóglifos, e está prevista para a Fase 4.
 
 ### 6.4 Módulo de Impersonação de Marca (peso 20%)
 

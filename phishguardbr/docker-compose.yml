@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: phishguard
+      POSTGRES_USER: phishguard
+      POSTGRES_PASSWORD: dev_only_change_me
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    environment:
+      DATABASE_URL: postgres://phishguard:dev_only_change_me@db:5432/phishguard
+      POOL_MODE: transaction
+    ports: ["6432:6432"]
+    depends_on: [db]
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: dev@phishguard.local
+      PGADMIN_DEFAULT_PASSWORD: dev_only_change_me
+    ports: ["5050:80"]
+    depends_on: [db]
+
+volumes:
+  pgdata:
